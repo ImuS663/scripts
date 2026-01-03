@@ -5,6 +5,13 @@
 # Description: Converts video files to HEVC (H.265) format using FFmpeg and libx265.
 # Requirements: FFmpeg with libx265 support.
 # Usage: to-hevc.sh -i input.mp4
+# Options:
+#   -i, --input       Input video file (required)
+#   -q, --quality     Quality level (CRF) for output video (default: 28)
+#   -w, --width       Width of output video (default: original width)
+#   -h, --height      Height of output video (default: original height)
+#   --copy-date       Copy the modification date from input to output file
+#   --lossless        Encode video in lossless mode
 # ------------------------------------------------------------------------------
 
 set -e

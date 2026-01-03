@@ -5,6 +5,14 @@
 # Description: Converts video files to HEVC (H.265) format using FFmpeg and NVIDIA GPU (hevc_nvenc).
 # Requirements: FFmpeg with hevc_nvenc support and NVIDIA GPU with CUDA.
 # Usage: to-hevc-cuda.sh -i input.mp4
+# Options:
+#   -i, --input       Input video file (required)
+#   -q, --quality     Quality level (CRF) for output video (default: 28)
+#   -w, --width       Width of output video (default: original width)
+#   -h, --height      Height of output video (default: original height)
+#   --native-decode   Use native decoding without hardware acceleration
+#   --copy-date       Copy the modification date from input to output file
+#   --lossless        Encode video in lossless mode
 # ------------------------------------------------------------------------------
 
 set -e
