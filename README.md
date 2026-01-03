@@ -10,3 +10,7 @@ This repository contains a collection of useful scripts for various tasks. Each 
 - `to-hevc-cuda.sh`: A script to convert video files to the HEVC codec using CUDA for hardware acceleration.
 - `to-png.sh`: A script to convert image files to PNG format.
 - `to-webp.sh`: A script to convert image files to WebP format.
+
+## Dependencies
+
+These scripts may require certain dependencies to be installed on your system. Please refer to each script's documentation for specific requirements.
