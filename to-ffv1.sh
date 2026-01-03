@@ -5,6 +5,11 @@
 # Description: Converts video files to FFV1 format using FFmpeg and ffv1 lib.
 # Requirements: FFmpeg with ffv1 support.
 # Usage: to-ffv1.sh -i input.mp4
+# Options:
+#   -i, --input       Input video file (required)
+#   -w, --width       Output video width (default: original width)
+#   -h, --height      Output video height (default: original height)
+#   --copy-date       Copy the modification date from the input file to the output file
 # ------------------------------------------------------------------------------
 
 set -e
