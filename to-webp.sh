@@ -5,6 +5,14 @@
 # Description: Converts image files to WEBP format using FFmpeg and libwebp_anim.
 # Requirements: FFmpeg with libwebp_anim support.
 # Usage: to-webp.sh -i input.png
+# Options:
+#   -i, --input       Input image file (required)
+#   -q, --quality     Quality of the output WEBP (default: 98)
+#   -w, --width       Width of the output WEBP (default: original width)
+#   -h, --height      Height of the output WEBP (default: original height)
+#   --copy-date       Copy the modification date from the input file to the output file
+#   --lossless        Use lossless compression (overrides quality)
+#   --remove          Remove the input file after conversion
 # ------------------------------------------------------------------------------
 
 set -e

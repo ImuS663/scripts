@@ -5,6 +5,12 @@
 # Description: Converts image files to PNG format using FFmpeg and png lib.
 # Requirements: FFmpeg with png support.
 # Usage: to-png.sh -i input.jpg
+# Options:
+#   -i, --input       Input image file (required)
+#   -w, --width       Width of the output PNG (default: original width)
+#   -h, --height      Height of the output PNG (default: original height)
+#   --copy-date       Copy the modification date from the input file to the output file
+#   --remove          Remove the input file after conversion
 # ------------------------------------------------------------------------------
 
 set -e
