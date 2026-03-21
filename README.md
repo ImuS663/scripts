@@ -5,6 +5,7 @@ This repository contains a collection of useful scripts for various tasks. Each 
 ## Available Scripts
 
 - `media-info.sh`: A script to retrieve and display short media information from video files.
+- `media-check.sh`: A script to check media file on errors.
 - `to-ffv1.sh`: A script to convert video files to the FFV1 codec for lossless compression.
 - `to-hevc.sh`: A script to convert video files to the HEVC codec for efficient compression.
 - `to-hevc-cuda.sh`: A script to convert video files to the HEVC codec using CUDA for hardware acceleration.
