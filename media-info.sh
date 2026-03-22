@@ -16,39 +16,39 @@ RESET="\033[0m"
 
 # If no arguments → show usage
 if [[ $# -eq 0 ]]; then
-    echo "Usage: $0 <files>"
-    exit 1
+	echo "Usage: $0 <files>"
+	exit 1
 fi
 
 for file in "$@"; do
-    # Skip if not a file
-    if [[ ! -f "$file" ]]; then
-        echo -e "${RED}$file is not a file, skipping${RESET}"
-        continue
-    fi
-    
-    echo -ne "${GREEN}${file}${RESET}: "
+	# Skip if not a file
+	if [[ ! -f "$file" ]]; then
+		echo -e "${RED}$file is not a file, skipping${RESET}"
+		continue
+	fi
 
-    info=$(ffprobe -v error -select_streams v:0 -show_entries stream=width,height,codec_name -of default=noprint_wrappers=1 -of csv=s=x:p=0 "$file")
+	echo -ne "${GREEN}${file}${RESET}: "
 
-    # Skip if ffprobe failed
-    if [[ -z "$info" ]]; then
-        echo -e "${RED}error reading file${RESET}"
-        continue
-    fi
+	info=$(ffprobe -v error -select_streams v:0 -show_entries stream=width,height,codec_name -of default=noprint_wrappers=1 -of csv=s=x:p=0 "$file")
 
-    codec="${info%%x*}"
-    rest="${info#*x}"
-    width="${rest%%x*}"
-    height="${rest#*x}"
+	# Skip if ffprobe failed
+	if [[ -z "$info" ]]; then
+		echo -e "${RED}error reading file${RESET}"
+		continue
+	fi
 
-    if (( width > height )); then
-        orient="horizontal"
-    elif (( height > width )); then
-        orient="vertical"
-    else
-        orient="square"
-    fi
+	codec="${info%%x*}"
+	rest="${info#*x}"
+	width="${rest%%x*}"
+	height="${rest#*x}"
 
-    echo -e "(${YELLOW}${codec}${RESET}) ${width}x${height} [${BLUE}${orient}${RESET}]"
+	if ((width > height)); then
+		orient="horizontal"
+	elif ((height > width)); then
+		orient="vertical"
+	else
+		orient="square"
+	fi
+
+	echo -e "(${YELLOW}${codec}${RESET}) ${width}x${height} [${BLUE}${orient}${RESET}]"
 done
