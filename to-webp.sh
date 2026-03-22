@@ -87,7 +87,7 @@ fi
 
 # Quality or lossless flag
 if $lossless; then
-  quality_str="-lossless 1"
+  quality_str="-lossless 1 -compression_level 6"
 else
   quality_str="-quality $quality"
 fi
