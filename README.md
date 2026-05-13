@@ -9,6 +9,9 @@ This repository contains a collection of useful scripts for various tasks. Each 
 - `to-ffv1.sh`: A script to convert video files to the FFV1 codec for lossless compression.
 - `to-hevc.sh`: A script to convert video files to the HEVC codec for efficient compression.
 - `to-hevc-cuda.sh`: A script to convert video files to the HEVC codec using CUDA for hardware acceleration.
+- `to-hevc-amf.sh`: A script to convert video files to the HEVC codec using AMD GPU for hardware acceleration.
+- `to-hevc-vaapi.sh`: A script to convert video files to the HEVC codec using VA-API for hardware acceleration.
+- `to-hevc-vulkan.sh`: A script to convert video files to the HEVC codec using Vulkan for hardware acceleration.
 - `to-png.sh`: A script to convert image files to PNG format.
 - `to-webp.sh`: A script to convert image files to WebP format.
 
