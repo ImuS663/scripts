@@ -64,7 +64,7 @@ fi
 input_dir="$(dirname "$input_file")"
 input_base="$(basename "$input_file")"
 input_name="${input_base%.*}"
-output_file="$input_dir/$input_name.webp"
+output_file="$input_dir/$input_name.png"
 
 # Scale filter
 if [[ $width -gt 0 || $height -gt 0 ]]; then
