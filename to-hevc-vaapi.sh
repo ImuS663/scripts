@@ -77,22 +77,28 @@ mkdir -p "$output_dir"
 
 # Scale filter
 if [[ $width -gt 0 || $height -gt 0 ]]; then
-	scale_filter="-vf scale_vaapi=w=${width}:h=${height}"
+	scale_filter=(-vf "scale_vaapi=w=${width}:h=${height}")
 else
-	scale_filter=""
+	scale_filter=()
 fi
 
 # Quality or lossless flag
 if $lossless; then
-	quality_str="-rc_mode cqp -qp 0"
+	quality_str=(-rc_mode cqp -qp 0)
 else
-	quality_str="-rc_mode CQP -qp $quality"
+	quality_str=(-rc_mode CQP -qp "$quality")
 fi
 
 # Run ffmpeg
-ffmpeg -hwaccel vaapi -hwaccel_device /dev/dri/renderD128 -hwaccel_output_format vaapi -i "$input_file" \
-	-c:v hevc_vaapi $scale_filter $quality_str \
-	-c:a aac -movflags +faststart "$output_file"
+ffmpeg_command=(ffmpeg -hwaccel vaapi -hwaccel_device /dev/dri/renderD128 -hwaccel_output_format vaapi -i "$input_file"
+	-c:v hevc_vaapi "${scale_filter[@]}" "${quality_str[@]}"
+	-c:a aac -movflags +faststart "$output_file")
+
+if command -v systemd-inhibit >/dev/null 2>&1; then
+	systemd-inhibit --what=sleep:idle --why="Converting $input_base to HEVC" "${ffmpeg_command[@]}"
+else
+	"${ffmpeg_command[@]}"
+fi
 
 # Copy date if needed
 if $copy_date; then

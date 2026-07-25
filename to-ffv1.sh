@@ -65,13 +65,19 @@ mkdir -p "$output_dir"
 
 # Scale filter
 if [[ $width -gt 0 || $height -gt 0 ]]; then
-	scale_filter="-vf scale=w=${width}:h=${height}"
+	scale_filter=(-vf "scale=w=${width}:h=${height}")
 else
-	scale_filter=""
+	scale_filter=()
 fi
 
 # Run ffmpeg
-ffmpeg -i "$input_file" -c:v ffv1 $scale_filter -c:a aac -movflags +faststart "$output_file"
+ffmpeg_command=(ffmpeg -i "$input_file" -c:v ffv1 "${scale_filter[@]}" -c:a aac -movflags +faststart "$output_file")
+
+if command -v systemd-inhibit >/dev/null 2>&1; then
+	systemd-inhibit --what=sleep:idle --why="Converting $input_base to FFV1" "${ffmpeg_command[@]}"
+else
+	"${ffmpeg_command[@]}"
+fi
 
 # Copy date if needed
 if $copy_date; then

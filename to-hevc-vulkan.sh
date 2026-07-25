@@ -77,23 +77,29 @@ mkdir -p "$output_dir"
 
 # Scale filter
 if [[ $width -gt 0 || $height -gt 0 ]]; then
-	scale_filter="-vf scale=w=${width}:h=${height},hwupload"
+	scale_filter=(-vf "scale=w=${width}:h=${height},hwupload")
 else
-	scale_filter="-vf hwupload"
+	scale_filter=(-vf hwupload)
 fi
 
 # Quality or lossless flag
 if $lossless; then
-	quality_str="-tune lossless"
+	quality_str=(-tune lossless)
 else
-	quality_str="-qp $quality"
+	quality_str=(-qp "$quality")
 fi
 
 # Run ffmpeg
-ffmpeg -init_hw_device vulkan=vk:0 -hwaccel vulkan -hwaccel_output_format vulkan -i "$input_file" \
-	-c:v hevc_vulkan $scale_filter -rc_mode cqp $quality_str \
-	-usage transcode -tune hq \
-	-c:a aac -movflags +faststart "$output_file"
+ffmpeg_command=(ffmpeg -init_hw_device vulkan=vk:0 -hwaccel vulkan -hwaccel_output_format vulkan -i "$input_file"
+	-c:v hevc_vulkan "${scale_filter[@]}" -rc_mode cqp "${quality_str[@]}"
+	-usage transcode -tune hq
+	-c:a aac -movflags +faststart "$output_file")
+
+if command -v systemd-inhibit >/dev/null 2>&1; then
+	systemd-inhibit --what=sleep:idle --why="Converting $input_base to HEVC" "${ffmpeg_command[@]}"
+else
+	"${ffmpeg_command[@]}"
+fi
 
 # Copy date if needed
 if $copy_date; then

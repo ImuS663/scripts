@@ -77,21 +77,28 @@ mkdir -p "$output_dir"
 
 # Scale filter
 if [[ $width -gt 0 || $height -gt 0 ]]; then
-	scale_filter="-vf scale=w=${width}:h=${height}"
+	scale_filter=(-vf "scale=w=${width}:h=${height}")
 else
-	scale_filter=""
+	scale_filter=()
 fi
 
 # Quality or lossless flag
 if $lossless; then
-	quality_str="-x265-params lossless=1"
+	quality_str=(-x265-params lossless=1)
 else
-	quality_str="-crf:v $quality"
+	quality_str=(-crf:v "$quality")
 fi
 
 # Run ffmpeg
-ffmpeg -i "$input_file" -c:v libx265 $scale_filter -preset:v slow $quality_str \
-	-c:a aac -movflags +faststart "$output_file"
+ffmpeg_command=(ffmpeg -i "$input_file"
+	-c:v libx265 "${scale_filter[@]}" -preset:v slow "${quality_str[@]}"
+	-c:a aac -movflags +faststart "$output_file")
+
+if command -v systemd-inhibit >/dev/null 2>&1; then
+	systemd-inhibit --what=sleep:idle --why="Converting $input_base to HEVC" "${ffmpeg_command[@]}"
+else
+	"${ffmpeg_command[@]}"
+fi
 
 # Copy date if needed
 if $copy_date; then

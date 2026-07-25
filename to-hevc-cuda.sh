@@ -83,31 +83,37 @@ mkdir -p "$output_dir"
 
 # HW acceleration and scale type
 if $native_decode; then
-	hwaccel=""
+	hwaccel=()
 	scale_type="scale"
 else
-	hwaccel="-hwaccel cuda"
+	hwaccel=(-hwaccel cuda)
 	scale_type="scale_cuda"
 fi
 
 # Scale filter
 if [[ $width -gt 0 || $height -gt 0 ]]; then
-	scale_filter="-vf ${scale_type}=w=${width}:h=${height}"
+	scale_filter=(-vf "${scale_type}=w=${width}:h=${height}")
 else
-	scale_filter=""
+	scale_filter=()
 fi
 
 # Quality or lossless flag
 if $lossless; then
-	quality_str="-tune:v lossless"
+	quality_str=(-tune:v lossless)
 else
-	quality_str="-tune:v uhq -rc:v vbr -cq:v $quality -b:v 0"
+	quality_str=(-tune:v uhq -rc:v vbr -cq:v "$quality" -b:v 0)
 fi
 
 # Run ffmpeg
-ffmpeg $hwaccel -hwaccel_output_format cuda -i "$input_file" \
-	-c:v hevc_nvenc $scale_filter -preset:v p7 $quality_str \
-	-c:a aac -movflags +faststart "$output_file"
+ffmpeg_command=(ffmpeg "${hwaccel[@]}" -hwaccel_output_format cuda -i "$input_file"
+	-c:v hevc_nvenc "${scale_filter[@]}" -preset:v p7 "${quality_str[@]}"
+	-c:a aac -movflags +faststart "$output_file")
+
+if command -v systemd-inhibit >/dev/null 2>&1; then
+	systemd-inhibit --what=sleep:idle --why="Converting $input_base to HEVC" "${ffmpeg_command[@]}"
+else
+	"${ffmpeg_command[@]}"
+fi
 
 # Copy date if needed
 if $copy_date; then
