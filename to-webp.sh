@@ -80,20 +80,20 @@ output_file="$input_dir/$input_name.webp"
 
 # Scale filter
 if [[ $width -gt 0 || $height -gt 0 ]]; then
-	scale_filter="-vf scale=${width}:${height}"
+	scale_filter=(-vf "scale=${width}:${height}")
 else
-	scale_filter=""
+	scale_filter=()
 fi
 
 # Quality or lossless flag
 if $lossless; then
-	quality_str="-lossless 1 -compression_level 6"
+	quality_str=(-lossless 1 -compression_level 6)
 else
-	quality_str="-quality $quality"
+	quality_str=(-quality "$quality")
 fi
 
 # Run ffmpeg
-ffmpeg -i "./$input_file" -c:v libwebp_anim $scale_filter -loop 0 $quality_str "$output_file"
+ffmpeg -i "./$input_file" -c:v libwebp_anim "${scale_filter[@]}" -loop 0 "${quality_str[@]}" "$output_file"
 
 # Copy date if needed
 if $copy_date; then

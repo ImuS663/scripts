@@ -68,13 +68,13 @@ output_file="$input_dir/$input_name.png"
 
 # Scale filter
 if [[ $width -gt 0 || $height -gt 0 ]]; then
-	scale_filter="-vf scale=${width}:${height}"
+	scale_filter=(-vf "scale=${width}:${height}")
 else
-	scale_filter=""
+	scale_filter=()
 fi
 
 # Run ffmpeg
-ffmpeg -i "./$input_file" -c:v png $scale_filter "$output_file"
+ffmpeg -i "./$input_file" -c:v png "${scale_filter[@]}" "$output_file"
 
 # Copy date if needed
 if $copy_date; then
