@@ -29,18 +29,24 @@ for file in "$@"; do
 
 	echo -ne "${GREEN}${file}${RESET}: "
 
-	info=$(ffprobe -v error -select_streams v:0 -show_entries stream=width,height,codec_name -of default=noprint_wrappers=1 -of csv=s=x:p=0 "$file")
+	# Reset per-file state
+	codec='' width='' height=''
+
+	# Keep only the first value of each key (ffprobe may emit the stream twice
+	# when a tmcd track reference / stream group is present)
+	while IFS='=' read -r key val; do
+		case "$key" in
+		codec_name) codec="${codec:-$val}" ;;
+		width) width="${width:-$val}" ;;
+		height) height="${height:-$val}" ;;
+		esac
+	done < <(ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of default=nw=1 "$file" 2>/dev/null)
 
 	# Skip if ffprobe failed
-	if [[ -z "$info" ]]; then
-		echo -e "${RED}error reading file${RESET}"
+	if [[ -z "$codec" || ! "$width" =~ ^[0-9]+$ || ! "$height" =~ ^[0-9]+$ ]]; then
+		echo -e "${RED}error reading file${RESET}${reason:+ ($reason)}"
 		continue
 	fi
-
-	codec="${info%%x*}"
-	rest="${info#*x}"
-	width="${rest%%x*}"
-	height="${rest#*x}"
 
 	if ((width > height)); then
 		orient="horizontal"
