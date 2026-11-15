@@ -5,9 +5,10 @@
 # Description: Converts video files to HEVC (H.265) format using FFmpeg and NVIDIA GPU (hevc_nvenc).
 # Requirements: FFmpeg with hevc_nvenc support and NVIDIA GPU with CUDA.
 # Usage: to-hevc-cuda.sh -i input.mp4
+#        to-hevc-cuda.sh -i *.mp4
 # Options:
-#   -i, --input       Input video file (required)
-#   -q, --quality     Quality level (CRF) for output video (default: 28)
+#   -i, --input       One or more input files (required)
+#   -q, --quality     Quality level (CQ) for output video (default: 28)
 #   -w, --width       Width of output video (default: original width)
 #   -h, --height      Height of output video (default: original height)
 #   --native-decode   Use native decoding without hardware acceleration
@@ -24,13 +25,22 @@ height=-2
 native_decode=false
 copy_date=false
 lossless=false
+input_files=()
+current_output=""
+
+# Remove partial output on Ctrl+C / termination
+trap '[[ -n $current_output ]] && rm -f "$current_output"; exit 130' INT TERM
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
 	case "$1" in
 	-i | --input)
-		input_file="$2"
-		shift 2
+		shift
+		# Collect all following args until the next option
+		while [[ $# -gt 0 && "$1" != -* ]]; do
+			input_files+=("$1")
+			shift
+		done
 		;;
 	-q | --quality)
 		quality="$2"
@@ -68,25 +78,19 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Validate input
-if [[ -z "$input_file" || ! -f "$input_file" ]]; then
-	echo "Error: --input is required and must point to a valid file."
+if [[ ${#input_files[@]} -eq 0 ]]; then
+	echo "Error: --input is required (one or more files)."
 	exit 1
 fi
-
-input_dir="$(dirname "$input_file")"
-input_base="$(basename "$input_file")"
-input_name="${input_base%.*}"
-output_dir="$input_dir/output"
-output_file="$output_dir/$input_name.mp4"
-
-mkdir -p "$output_dir"
 
 # HW acceleration and scale type
 if $native_decode; then
 	hwaccel=()
+	hwaccel_fmt=()
 	scale_type="scale"
 else
 	hwaccel=(-hwaccel cuda)
+	hwaccel_fmt=(-hwaccel_output_format cuda)
 	scale_type="scale_cuda"
 fi
 
@@ -104,20 +108,70 @@ else
 	quality_str=(-tune:v uhq -rc:v vbr -cq:v "$quality" -b:v 0)
 fi
 
-# Run ffmpeg
-ffmpeg_command=(ffmpeg "${hwaccel[@]}" -hwaccel_output_format cuda -i "$input_file"
-	-c:v hevc_nvenc "${scale_filter[@]}" -preset:v p7 "${quality_str[@]}"
-	-c:a aac -movflags +faststart "$output_file")
+convert() {
+	local input_file="$1"
+	local input_dir input_base input_name output_dir output_file
 
-if command -v systemd-inhibit >/dev/null 2>&1; then
-	systemd-inhibit --what=sleep:idle --why="Converting $input_base to HEVC" "${ffmpeg_command[@]}"
-else
-	"${ffmpeg_command[@]}"
-fi
+	input_dir="$(dirname "$input_file")"
+	input_base="$(basename "$input_file")"
+	input_name="${input_base%.*}"
+	output_dir="$input_dir/output"
+	output_file="$output_dir/$input_name.mp4"
 
-# Copy date if needed
-if $copy_date; then
-	touch -r "$input_file" "$output_file"
-fi
+	# Never overwrite (also covers a.mp4 + a.mkv collisions)
+	if [[ -e "$output_file" ]]; then
+		echo "⏭️  Skipping (output exists): $output_file"
+		return 0
+	fi
 
-echo "✅ Conversion complete: $output_file"
+	mkdir -p "$output_dir"
+
+	local ffmpeg_command=(ffmpeg "${hwaccel[@]}" "${hwaccel_fmt[@]}" -i "$input_file"
+		-c:v hevc_nvenc "${scale_filter[@]}" -preset:v p7 "${quality_str[@]}"
+		-c:a aac -movflags +faststart "$output_file")
+
+	current_output="$output_file"
+
+	# Run ffmpeg
+	if command -v systemd-inhibit >/dev/null 2>&1; then
+		systemd-inhibit --what=sleep:idle --why="Converting $input_base to HEVC" "${ffmpeg_command[@]}" || {
+			rm -f "$output_file"
+			current_output=""
+			return 1
+		}
+	else
+		"${ffmpeg_command[@]}" || {
+			rm -f "$output_file"
+			current_output=""
+			return 1
+		}
+	fi
+
+	current_output=""
+
+	# Copy date if needed
+	if $copy_date; then
+		touch -r "$input_file" "$output_file"
+	fi
+
+	echo "✅ Conversion complete: $output_file"
+}
+
+failed=0
+for f in "${input_files[@]}"; do
+	if [[ ! -f "$f" ]]; then
+		echo "⚠️  Skipping (not a file): $f"
+		continue
+	fi
+	# Skip results of previous runs
+	if [[ "$(basename "$(dirname "$f")")" == "output" ]]; then
+		echo "⏭️  Skipping output file: $f"
+		continue
+	fi
+	if ! convert "$f"; then
+		echo "❌ Failed: $f"
+		failed=$((failed + 1))
+	fi
+done
+
+[[ $failed -eq 0 ]] || exit 1
