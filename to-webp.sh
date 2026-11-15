@@ -5,13 +5,15 @@
 # Description: Converts image files to WEBP format using FFmpeg and libwebp_anim.
 # Requirements: FFmpeg with libwebp_anim support.
 # Usage: to-webp.sh -i input.png
+#        to-webp.sh -i *.png
 # Options:
-#   -i, --input       Input image file (required)
+#   -i, --input       One or more input files  (required)
 #   -q, --quality     Quality of the output WEBP (default: 98)
 #   -w, --width       Width of the output WEBP (default: original width)
 #   -h, --height      Height of the output WEBP (default: original height)
 #   --copy-date       Copy the modification date from the input file to the output file
 #   --lossless        Use lossless compression (overrides quality)
+#   --recompress      Re-encode files already in the target format in place
 #   --remove          Remove the input file after conversion
 # ------------------------------------------------------------------------------
 
@@ -23,14 +25,24 @@ width=-2
 height=-2
 copy_date=false
 lossless=false
+recompress=false
 remove=false
+input_files=()
+current_output=""
+
+# Remove partial output on Ctrl+C / termination
+trap '[[ -n $current_output ]] && rm -f "$current_output"; exit 130' INT TERM
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
 	case "$1" in
 	-i | --input)
-		input_file="$2"
-		shift 2
+		shift
+		# Collect all following args until the next option
+		while [[ $# -gt 0 && "$1" != -* ]]; do
+			input_files+=("$1")
+			shift
+		done
 		;;
 	-q | --quality)
 		quality="$2"
@@ -56,6 +68,10 @@ while [[ $# -gt 0 ]]; do
 		lossless=true
 		shift
 		;;
+	--recompress)
+		recompress=true
+		shift
+		;;
 	-*)
 		echo "Unknown option: $1"
 		exit 1
@@ -68,15 +84,10 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Validate input
-if [[ -z "$input_file" || ! -f "$input_file" ]]; then
-	echo "Error: --input is required and must point to a valid file."
+if [[ ${#input_files[@]} -eq 0 ]]; then
+	echo "Error: --input is required (one or more files)."
 	exit 1
 fi
-
-input_dir="$(dirname "$input_file")"
-input_base="$(basename "$input_file")"
-input_name="${input_base%.*}"
-output_file="$input_dir/$input_name.webp"
 
 # Scale filter
 if [[ $width -gt 0 || $height -gt 0 ]]; then
@@ -92,17 +103,78 @@ else
 	quality_str=(-quality "$quality")
 fi
 
-# Run ffmpeg
-ffmpeg -i "./$input_file" -c:v libwebp_anim "${scale_filter[@]}" -loop 0 "${quality_str[@]}" "$output_file"
+convert() {
+	local input_file="$1"
+	local input_dir input_base input_name input_ext tmp_file output_file in_place=false
 
-# Copy date if needed
-if $copy_date; then
-	touch -r "$input_file" "$output_file"
-fi
+	input_dir="$(dirname "$input_file")"
+	input_base="$(basename "$input_file")"
+	if [[ "$input_base" == ?*.* ]]; then
+		input_name="${input_base%.*}"
+		input_ext="${input_base##*.}"
+	else
+		input_name="$input_base"
+		input_ext=""
+	fi
+	input_ext="${input_ext,,}"
+	output_file="$input_dir/$input_name.webp"
+	tmp_file="$input_dir/$input_name.tmp.webp"
 
-# Remove input file if needed
-if $remove; then
-	rm "$input_file"
-fi
+	if $recompress && [[ "$input_ext" == "webp" ]]; then
+		in_place=true
+		output_file="$input_file"
+	fi
 
-echo "✅ Conversion complete: $output_file"
+	if ! $in_place && [[ -e "$output_file" ]]; then
+		echo "⏭️  Skipping (output exists): $output_file"
+		return 0
+	fi
+
+	current_output="$tmp_file"
+
+	# Run ffmpeg
+	ffmpeg -i "$input_file" -c:v libwebp_anim "${scale_filter[@]}" -loop 0 "${quality_str[@]}" "$tmp_file" || {
+		rm -f "$tmp_file"
+		current_output=""
+		return 1
+	}
+
+	# In place: keep the original if recompression didn't help
+	if $in_place && (($(stat -c%s "$tmp_file") >= $(stat -c%s "$input_file"))); then
+		rm -f "$tmp_file"
+		current_output=""
+		echo "⏭️  Already optimal, kept original: $input_file"
+		return 0
+	fi
+
+	# Copy date if needed
+	if $copy_date; then
+		touch -r "$input_file" "$tmp_file"
+	fi
+
+	mv "$tmp_file" "$output_file"
+	current_output=""
+
+	# Remove input file if needed
+	if $remove && [[ "$input_file" -ef "$output_file" ]]; then
+		echo "⚠️  Input and output are the same file, not removing: $input_file"
+	elif $remove; then
+		rm "$input_file"
+	fi
+
+	echo "✅ Conversion complete: $output_file"
+}
+
+failed=0
+for f in "${input_files[@]}"; do
+	if [[ ! -f "$f" ]]; then
+		echo "⚠️  Skipping (not a file): $f"
+		continue
+	fi
+	if ! convert "$f"; then
+		echo "❌ Failed: $f"
+		failed=$((failed + 1))
+	fi
+done
+
+[[ $failed -eq 0 ]] || exit 1
